@@ -1,0 +1,98 @@
+---
+# Playbook pour déployer l'API de supervision des capteurs
+- name: Déployer l'API de supervision des capteurs
+  hosts: api_servers
+  become: true
+  vars:
+    api_repo: "https://github.com/votre-username/pipeline-CI.git"
+    api_dir: "/opt/sensors-api"
+    node_version: "16.x"
+
+  tasks:
+    - name: Mettre à jour les paquets
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Installer les prérequis
+      apt:
+        name:
+          - git
+          - curl
+          - build-essential
+        state: present
+
+    - name: Ajouter le dépôt NodeJS
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_{{ node_version }} | bash -
+      args:
+        creates: /etc/apt/sources.list.d/nodesource.list
+
+    - name: Installer Node.js
+      apt:
+        name: nodejs
+        state: present
+        update_cache: yes
+
+    - name: Installer PM2 globalement
+      npm:
+        name: pm2
+        global: yes
+        state: present
+
+    - name: Vérifier si le dossier de l'API existe
+      stat:
+        path: "{{ api_dir }}"
+      register: api_dir_check
+
+    - name: Cloner le dépôt Git
+      git:
+        repo: "{{ api_repo }}"
+        dest: "{{ api_dir }}"
+        version: main
+      when: not api_dir_check.stat.exists
+
+    - name: Mettre à jour le dépôt existant
+      git:
+        repo: "{{ api_repo }}"
+        dest: "{{ api_dir }}"
+        version: main
+        update: yes
+      when: api_dir_check.stat.exists
+
+    - name: Créer un fichier .env
+      copy:
+        dest: "{{ api_dir }}/api/.env"
+        content: |
+          PORT=3000
+        mode: '0644'
+
+    - name: Installer les dépendances de l'API
+      npm:
+        path: "{{ api_dir }}/api"
+        state: present
+
+    - name: Démarrer ou redémarrer l'API avec PM2
+      shell: |
+        cd {{ api_dir }}/api && pm2 start index.js --name sensors-api || pm2 restart sensors-api
+      become: yes
+      become_user: ubuntu
+
+    - name: S'assurer que PM2 démarre au démarrage
+      shell: pm2 save && pm2 startup | tail -n 1
+      register: pm2_startup
+      become: yes
+      become_user: ubuntu
+
+    - name: Exécuter la commande de démarrage PM2
+      shell: "{{ pm2_startup.stdout }}"
+      when: pm2_startup.stdout != ""
+
+    - name: Vérifier que l'API est en cours d'exécution
+      uri:
+        url: http://localhost:3000
+        return_content: yes
+      register: api_status
+      failed_when: "'API fonctionnelle' not in api_status.content"
+      retries: 3
+      delay: 5
