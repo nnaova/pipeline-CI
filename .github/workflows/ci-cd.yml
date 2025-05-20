@@ -75,15 +75,33 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           echo "${{ secrets.SSH_PUBLIC_KEY }}" > ~/.ssh/id_rsa.pub
 
+      - name: Provision Infrastructure with Terraform
+        run: |
+          cd infra
+          terraform init
+          terraform validate
+          terraform plan
+          terraform apply -auto-approve
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
+          GOOGLE_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+
       - name: Install Ansible
         run: |
           sudo apt-add-repository --yes --update ppa:ansible/ansible
           sudo apt install ansible -y
 
-      - name: Execute Release Script
+      - name: Deploy Application with Ansible
+        run: |
+          echo "Attente de 30 secondes pour s'assurer que l'instance est prête..."
+          sleep 30
+          ansible-playbook -i ./ansible/inventory.ini ./ansible/deploy.yml
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: False
+
+      - name: Execute Release Script for Versioning
         run: |
           chmod +x release.sh
           export CI=true
+          export SKIP_DEPLOYMENT=true
           ./release.sh
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: False

@@ -69,8 +69,8 @@ git push && git push origin "$NEXT_VERSION"
 
 echo "✅ Release $NEXT_VERSION créée avec succès!"
 
-# Si le script est exécuté en mode CI, déployer l'application
-if [ "$CI" = "true" ]; then
+# Si le script est exécuté en mode CI mais que le déploiement est géré séparément
+if [ "$CI" = "true" ] && [ "$SKIP_DEPLOYMENT" != "true" ]; then
   echo "🔄 Démarrage du déploiement..."
   
   # S'assurer que l'inventaire Ansible existe
@@ -88,6 +88,8 @@ if [ "$CI" = "true" ]; then
   ansible-playbook -i ./ansible/inventory.ini ./ansible/deploy.yml
   
   echo "✅ Déploiement terminé avec succès!"
+elif [ "$CI" = "true" ] && [ "$SKIP_DEPLOYMENT" = "true" ]; then
+  echo "⏭️ Étape de déploiement ignorée car gérée séparément dans le pipeline CI/CD"
 fi
 
 exit 0

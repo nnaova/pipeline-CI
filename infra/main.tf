@@ -1,8 +1,8 @@
 # Configuration du fournisseur Google Cloud
 provider "google" {
-  project     = var.gcp_project_id
-  region      = var.gcp_region
-  zone        = var.gcp_zone
+  project = var.gcp_project_id
+  region  = var.gcp_region
+  zone    = var.gcp_zone
 }
 
 # Création d'un réseau VPC pour l'instance
@@ -63,11 +63,21 @@ resource "google_compute_instance" "api_server" {
     ssh-keys = "ubuntu:${file(var.ssh_public_key_path)}"
   }
 
-  # Script de démarrage pour mettre à jour l'instance
+  # Script de démarrage pour préparer l'instance
   metadata_startup_script = <<-EOF
     #!/bin/bash
+    # Mettre à jour le système
     apt-get update
     apt-get upgrade -y
+
+    # Installer les prérequis pour Ansible
+    apt-get install -y python3 python3-pip
+
+    # Créer le dossier d'application
+    mkdir -p /opt/sensors-api
+    chown -R ubuntu:ubuntu /opt/sensors-api
+    
+    echo "Instance prête pour le déploiement Ansible"
   EOF
 
   # Connexion directe pour tester l'accès SSH
@@ -77,9 +87,15 @@ resource "google_compute_instance" "api_server" {
       user        = "ubuntu"
       private_key = file(var.ssh_private_key_path)
       host        = self.network_interface[0].access_config[0].nat_ip
+      timeout     = "2m"
     }
-    
-    inline = ["echo 'SSH connection established'"]
+
+    inline = [
+      "echo 'SSH connection established'",
+      "echo 'Waiting for cloud-init to complete...'",
+      "cloud-init status --wait || true", # Attend que cloud-init soit terminé
+      "echo 'Instance ready!'"
+    ]
   }
 }
 

@@ -30,7 +30,25 @@ Ce projet met en place une infrastructure complète pour déployer et gérer une
 
 ## Démarrage rapide
 
-### 1. Provisionnement de l'infrastructure
+### 1. Déploiement complet (Infrastructure + Application)
+
+Pour déployer à la fois l'infrastructure et l'application en une seule commande :
+
+```bash
+./deploy-infrastructure.sh
+```
+
+Ce script effectuera séquentiellement :
+
+1. Le provisionnement de l'infrastructure avec Terraform
+2. Le déploiement de l'application avec Ansible
+3. L'affichage des informations de connexion
+
+### 2. Déploiement étape par étape
+
+Si vous préférez déployer manuellement étape par étape :
+
+#### a. Provisionnement de l'infrastructure
 
 ```bash
 cd infra
@@ -39,7 +57,7 @@ terraform plan
 terraform apply
 ```
 
-### 2. Déploiement manuel de l'API
+#### b. Déploiement de l'application
 
 ```bash
 ansible-playbook -i ansible/inventory.ini ansible/deploy.yml
