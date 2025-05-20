@@ -83,8 +83,11 @@ app.put('/api/sensors/:id', (req, res) => {
 });
 
 // Démarrage du serveur
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
-});
+// Vérifier si le fichier est exécuté directement (pas importé comme module dans les tests)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Serveur démarré sur le port ${PORT}`);
+  });
+}
 
 module.exports = app; // Pour les tests
